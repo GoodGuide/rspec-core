@@ -15,27 +15,35 @@ Feature: Explicit Subject
 
   We recommend using the named helper method over `subject` in examples.
 
-  Scenario: `subject` in top level group
+  For more information about declaring a `subject` see the [API docs](http://rubydoc.info/github/rspec/rspec-core/RSpec/Core/MemoizedHelpers/ClassMethods#subject-instance_method).
+
+  Scenario: A `subject` can be defined and used in the top level group scope
     Given a file named "top_level_subject_spec.rb" with:
       """ruby
       RSpec.describe Array, "with some elements" do
-        subject { [1,2,3] }
-        it "should have the prescribed elements" do
-          expect(subject).to eq([1,2,3])
+        subject do
+          [1, 2, 3]
+        end
+
+        it "has the prescribed elements" do
+          expect(subject).to eq([1, 2, 3])
         end
       end
       """
     When I run `rspec top_level_subject_spec.rb`
     Then the examples should all pass
 
-  Scenario: `subject` in a nested group
+  Scenario: The `subject` defined in an outer group is available to inner groups
     Given a file named "nested_subject_spec.rb" with:
       """ruby
       RSpec.describe Array do
-        subject { [1,2,3] }
-        describe "with some elements" do
-          it "should have the prescribed elements" do
-            expect(subject).to eq([1,2,3])
+        subject do
+          [1, 2, 3]
+        end
+
+        describe "has some elements" do
+          it "which are the prescribed elements" do
+            expect(subject).to eq([1, 2, 3])
           end
         end
       end
@@ -43,29 +51,41 @@ Feature: Explicit Subject
     When I run `rspec nested_subject_spec.rb`
     Then the examples should all pass
 
-  Scenario: Access `subject` from `before` block
+  Scenario: The `subject` is available in `before` hooks
     Given a file named "top_level_subject_spec.rb" with:
       """ruby
       RSpec.describe Array, "with some elements" do
-        subject { [] }
-        before { subject.push(1,2,3) }
-        it "should have the prescribed elements" do
-          expect(subject).to eq([1,2,3])
+        subject do
+          []
+        end
+
+        before do
+          subject.push(1, 2, 3)
+        end
+
+        it "has the prescribed elements" do
+          expect(subject).to eq([1, 2, 3])
         end
       end
       """
     When I run `rspec top_level_subject_spec.rb`
     Then the examples should all pass
 
-  Scenario: Invoke helper method from `subject` block
+  Scenario: Helper methods can be invoked from a `subject` definition block
     Given a file named "helper_subject_spec.rb" with:
       """ruby
       RSpec.describe Array do
-        def prepared_array; [1,2,3] end
-        subject { prepared_array }
-        describe "with some elements" do
-          it "should have the prescribed elements" do
-            expect(subject).to eq([1,2,3])
+        def prepared_array
+          [1, 2, 3]
+        end
+
+        context "with some elements" do
+          subject do
+            prepared_array
+          end
+
+          it "has the prescribed elements" do
+            expect(subject).to eq([1, 2, 3])
           end
         end
       end
@@ -73,35 +93,52 @@ Feature: Explicit Subject
     When I run `rspec helper_subject_spec.rb`
     Then the examples should all pass
 
-  Scenario: `subject` block is invoked at most once per example
+  Scenario: A `subject` definition block is invoked at most once per example
     Given a file named "nil_subject_spec.rb" with:
       """ruby
       RSpec.describe Array do
-        describe "#[]" do
-          context "with index out of bounds" do
-            before { expect(Array).to receive(:one_two_three).once.and_return([1,2,3]) }
-            subject { Array.one_two_three[42] }
-            it { is_expected.to be_nil }
-          end
+        def increment_counter
+          @counter ||= 0
+          @counter += 1
+        end
+
+        subject do
+          increment_counter
+          [1, 2, 3]
+        end
+
+        before do
+          subject.push(4, 5)
+        end
+
+        it "has all prescribed elements" do
+          expect(subject).to eq([1, 2, 3, 4, 5])
+          subject.clear
+          expect(subject).to be_empty
+          expect(@counter).to eq 1
         end
       end
       """
     When I run `rspec nil_subject_spec.rb`
     Then the examples should all pass
 
-  Scenario: `subject!` bang method
+  Scenario: Use the `subject!` bang method to call the definition block before the example
     Given a file named "subject_bang_spec.rb" with:
       """ruby
-      RSpec.describe Array do
-        describe '#pop' do
-          let(:prepared_array) { [1,2,3] }
-          subject! { prepared_array.pop }
-          it "removes the last value from the array" do
-            expect(prepared_array).to eq([1,2])
-          end
-          it "returns the last value of the array" do
-            expect(subject).to eq(3)
-          end
+      RSpec.describe "eager loading with subject!" do
+        subject! do
+          invocation_order << :subject!
+          [1, 1, 2, 3, 5]
+        end
+
+        let(:invocation_order) do
+          []
+        end
+
+        it "calls the definition block before the example" do
+          invocation_order << :example
+          expect(invocation_order).to eq([:subject!, :example])
+          expect(subject).to eq([1, 1, 2, 3, 5])
         end
       end
       """
@@ -116,8 +153,11 @@ Feature: Explicit Subject
     Given a file named "named_subject_spec.rb" with:
       """ruby
       $count = 0
+
       RSpec.describe "named subject" do
-        subject(:global_count) { $count += 1 }
+        subject(:global_count) do
+          $count += 1
+        end
 
         it "memoizes the value" do
           expect(global_count).to eq(1)
@@ -132,7 +172,7 @@ Feature: Explicit Subject
           is_expected.to eq(2)
         end
 
-        it "is available as using the `subject` helper method" do
+        it "is still available using the subject method" do
           expect(subject).to eq(3)
         end
 
@@ -144,23 +184,22 @@ Feature: Explicit Subject
     When I run `rspec named_subject_spec.rb`
     Then the examples should all pass
 
-  Scenario: Use `subject!(:name)` to define a memoized helper method that is called in a `before` hook
+  Scenario: Use `subject!(:name)` to define a helper method called before the example
     Given a file named "named_subject_bang_spec.rb" with:
       """ruby
-      RSpec.describe "named subject!" do
-        let(:invocation_order) { [] }
-
+      RSpec.describe "eager loading using a named subject!" do
         subject!(:finite_fibonacci_sequence) do
           invocation_order << :subject!
           [1, 1, 2, 3, 5]
         end
 
+        let(:invocation_order) do
+          []
+        end
+
         it "calls the helper method in a before hook" do
           invocation_order << :example
           expect(invocation_order).to eq([:subject!, :example])
-        end
-
-        it "sets the subject as expected" do
           expect(finite_fibonacci_sequence).to eq([1, 1, 2, 3, 5])
         end
       end
