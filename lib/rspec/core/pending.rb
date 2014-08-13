@@ -92,8 +92,11 @@ module RSpec
                        true
                      end
             example.metadata[:pending] = false
-          rescue Exception => e
+          rescue => e
             example.execution_result[:exception] = e
+          rescue Exception
+            RSpec.wants_to_quit = true
+            raise
           ensure
             teardown_mocks_for_rspec
           end

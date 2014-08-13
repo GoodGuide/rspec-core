@@ -39,7 +39,7 @@ module RSpec
       class AfterAllHook < Hook
         def run(example)
           example.instance_exec(example, &block)
-        rescue Exception => e
+        rescue => e
           # TODO: come up with a better solution for this.
           RSpec.configuration.reporter.message <<-EOS
 

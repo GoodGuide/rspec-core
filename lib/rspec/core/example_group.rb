@@ -371,9 +371,12 @@ module RSpec
           result_for_this_group = run_examples(reporter)
           results_for_descendants = children.ordered.map {|child| child.run(reporter)}.all?
           result_for_this_group && results_for_descendants
-        rescue Exception => ex
+        rescue => ex
           RSpec.wants_to_quit = true if fail_fast?
           fail_filtered_examples(ex, reporter)
+        rescue Exception
+          RSpec.wants_to_quit = true
+          raise
         ensure
           run_after_all_hooks(new)
           before_all_ivars.clear
@@ -469,9 +472,12 @@ module RSpec
       def instance_eval_with_rescue(context = nil, &hook)
         begin
           instance_eval(&hook)
-        rescue Exception => e
+        rescue => e
           raise unless example
           example.set_exception(e, context)
+        rescue Exception => e
+          RSpec.wants_to_quit = true
+          raise
         end
       end
     end

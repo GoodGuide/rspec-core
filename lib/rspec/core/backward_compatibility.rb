@@ -10,12 +10,7 @@ module RSpec
           RSpec.deprecate(name.to_s, :replacement => "RSpec")
           RSpec
         else
-          begin
-            super
-          rescue Exception => e
-            e.backtrace.reject! {|l| l =~ Regexp.compile(__FILE__) }
-            raise e
-          end
+          super
         end
       end
     end
@@ -40,12 +35,7 @@ module RSpec
         require 'rspec/core/rake_task'
         RSpec::Core::RakeTask
       else
-        begin
-          super
-        rescue Exception => e
-          e.backtrace.reject! {|l| l =~ Regexp.compile(__FILE__) }
-          raise e
-        end
+        super
       end
     end
 

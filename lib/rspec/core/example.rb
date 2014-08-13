@@ -114,14 +114,18 @@ module RSpec
                 @example_group_instance.instance_eval(&@example_block)
               rescue Pending::PendingDeclaredInExample => e
                 @pending_declared_in_example = e.message
+              rescue => e
+                set_exception(e)
               rescue Exception => e
                 set_exception(e)
+                RSpec.wants_to_quit = true
+                raise
               ensure
                 run_after_each
               end
             end
           end
-        rescue Exception => e
+        rescue => e
           set_exception(e)
         ensure
           @example_group_instance.instance_variables.each do |ivar|
@@ -131,7 +135,7 @@ module RSpec
 
           begin
             assign_generated_description
-          rescue Exception => e
+          rescue => e
             set_exception(e, "while assigning the example description")
           end
         end
@@ -255,7 +259,7 @@ An error occurred #{context}
         else
           @example_group_class.run_around_each_hooks(self, Example.procsy(metadata, &block))
         end
-      rescue Exception => e
+      rescue => e
         set_exception(e, "in an around(:each) hook")
       end
 
@@ -297,7 +301,7 @@ An error occurred #{context}
       def run_after_each
         @example_group_class.run_after_each_hooks(self)
         verify_mocks
-      rescue Exception => e
+      rescue => e
         set_exception(e, "in an after(:each) hook")
       ensure
         @example_group_instance.teardown_mocks_for_rspec
@@ -305,7 +309,7 @@ An error occurred #{context}
 
       def verify_mocks
         @example_group_instance.verify_mocks_for_rspec
-      rescue Exception => e
+      rescue => e
         set_exception(e, :dont_print)
       end
 
